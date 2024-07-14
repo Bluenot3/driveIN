@@ -1,0 +1,293 @@
+<html><head><base href="https://immersive3dtube.com/experience?v=7rFnd2MfWyc"><title>Enhanced Immersive Pixel Experience - 1 Hour of Absolute Silence</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  body { margin: 0; overflow: hidden; background-color: #000; font-family: Arial, sans-serif; }
+  canvas { width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 1; }
+  #info {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-size: 14px;
+    background: rgba(0,0,0,0.5);
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 10;
+  }
+  #controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    color: white;
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  button, input[type="range"], select {
+    background-color: #7f00ff;
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+  }
+  button:hover, select:hover {
+    background-color: #9933ff;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 200px;
+    height: 15px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    transition: opacity .2s;
+  }
+  input[type="range"]:hover {
+    opacity: 1;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 25px;
+    height: 25px;
+    background: #7f00ff;
+    cursor: pointer;
+    border-radius: 50%;
+  }
+  #video-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  #video-container iframe {
+    width: 100vw;
+    height: 100vh;
+  }
+</style>
+</head>
+<body>
+<div id="info">
+  Enhanced Immersive Pixel Experience: 1 Hour of Absolute Silence<br>
+  Use WASD to move, mouse to look around<br>
+  <a href="https://immersive3dtube.com/about" style="color: #7f00ff;">About</a> | 
+  <a href="https://immersive3dtube.com/gallery" style="color: #7f00ff;">Gallery</a>
+</div>
+<div id="controls">
+  <button id="toggleAudio">Toggle Ambient Sound</button>
+  <div>
+    <label for="volume">Ambient Volume: </label>
+    <input type="range" id="volume" min="0" max="1" step="0.1" value="0.1">
+  </div>
+  <div>
+    <label for="pixelCount">Pixel Count: </label>
+    <input type="range" id="pixelCount" min="100" max="5000" step="100" value="1000">
+  </div>
+  <div>
+    <label for="pixelSize">Pixel Size: </label>
+    <input type="range" id="pixelSize" min="0.01" max="0.2" step="0.01" value="0.05">
+  </div>
+  <div>
+    <label for="pixelSpeed">Pixel Speed: </label>
+    <input type="range" id="pixelSpeed" min="0.001" max="0.1" step="0.001" value="0.02">
+  </div>
+  <select id="pixelShape">
+    <option value="cube">Cube</option>
+    <option value="sphere">Sphere</option>
+    <option value="tetrahedron">Tetrahedron</option>
+  </select>
+  <button id="resetCamera">Reset Camera</button>
+</div>
+<div id="video-container">
+  <iframe src="https://www.youtube.com/embed/7rFnd2MfWyc?si=jQ9_N4gfkME4WONU&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+<script>
+  let scene, camera, renderer, pixels = [], audioListener, ambientSound;
+
+  function init() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x000000, 0);
+    document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0xffffff, 1);
+    pointLight.position.set(0, 5, 0);
+    scene.add(pointLight);
+
+    createPixels();
+
+    camera.position.z = 5;
+
+    audioListener = new THREE.AudioListener();
+    camera.add(audioListener);
+    ambientSound = new THREE.Audio(audioListener);
+    
+    const audioLoader = new THREE.AudioLoader();
+    audioLoader.load('https://immersive3dtube.com/assets/soft_ambience.mp3', function(buffer) {
+      ambientSound.setBuffer(buffer);
+      ambientSound.setLoop(true);
+      ambientSound.setVolume(0.1);
+    });
+
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('mousemove', onMouseMove);
+
+    document.getElementById('toggleAudio').addEventListener('click', toggleAudio);
+    document.getElementById('volume').addEventListener('input', updateVolume);
+    document.getElementById('pixelCount').addEventListener('input', updatePixelCount);
+    document.getElementById('pixelSize').addEventListener('input', updatePixelSize);
+    document.getElementById('pixelSpeed').addEventListener('input', updatePixelSpeed);
+    document.getElementById('pixelShape').addEventListener('change', updatePixelShape);
+    document.getElementById('resetCamera').addEventListener('click', resetCamera);
+
+    animate();
+  }
+
+  function createPixels() {
+    const pixelCount = parseInt(document.getElementById('pixelCount').value);
+    const pixelSize = parseFloat(document.getElementById('pixelSize').value);
+    const pixelSpeed = parseFloat(document.getElementById('pixelSpeed').value);
+    const pixelShape = document.getElementById('pixelShape').value;
+
+    // Clear existing pixels
+    pixels.forEach(pixel => scene.remove(pixel.mesh));
+    pixels = [];
+
+    let geometry;
+    switch(pixelShape) {
+      case 'sphere':
+        geometry = new THREE.SphereGeometry(pixelSize, 8, 8);
+        break;
+      case 'tetrahedron':
+        geometry = new THREE.TetrahedronGeometry(pixelSize);
+        break;
+      default:
+        geometry = new THREE.BoxGeometry(pixelSize, pixelSize, pixelSize);
+    }
+
+    const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
+
+    for (let i = 0; i < pixelCount; i++) {
+      const material = new THREE.MeshPhongMaterial({
+        color: colors[Math.floor(Math.random() * colors.length)],
+        transparent: true,
+        opacity: 0.7
+      });
+      const pixel = new THREE.Mesh(geometry, material);
+      
+      pixel.position.set(
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 10
+      );
+      
+      scene.add(pixel);
+      pixels.push({
+        mesh: pixel,
+        speed: Math.random() * pixelSpeed + pixelSpeed / 2,
+        direction: new THREE.Vector3(
+          Math.random() - 0.5,
+          Math.random() - 0.5,
+          Math.random() - 0.5
+        ).normalize()
+      });
+    }
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+    
+    pixels.forEach((pixel) => {
+      pixel.mesh.position.add(pixel.direction.clone().multiplyScalar(pixel.speed));
+      
+      if (pixel.mesh.position.length() > 5) {
+        pixel.direction.negate();
+      }
+      
+      pixel.mesh.rotation.x += 0.01;
+      pixel.mesh.rotation.y += 0.01;
+    });
+    
+    renderer.render(scene, camera);
+  }
+
+  function onKeyDown(event) {
+    const speed = 0.1;
+    switch(event.key) {
+      case 'w': camera.position.z -= speed; break;
+      case 's': camera.position.z += speed; break;
+      case 'a': camera.position.x -= speed; break;
+      case 'd': camera.position.x += speed; break;
+    }
+  }
+
+  function onMouseMove(event) {
+    const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+    camera.rotation.y = mouseX * Math.PI / 4;
+    camera.rotation.x = mouseY * Math.PI / 4;
+  }
+
+  function toggleAudio() {
+    if (ambientSound.isPlaying) {
+      ambientSound.pause();
+    } else {
+      ambientSound.play();
+    }
+  }
+
+  function updateVolume(e) {
+    ambientSound.setVolume(e.target.value);
+  }
+
+  function updatePixelCount() {
+    createPixels();
+  }
+
+  function updatePixelSize() {
+    createPixels();
+  }
+
+  function updatePixelSpeed() {
+    const newSpeed = parseFloat(document.getElementById('pixelSpeed').value);
+    pixels.forEach(pixel => {
+      pixel.speed = Math.random() * newSpeed + newSpeed / 2;
+    });
+  }
+
+  function updatePixelShape() {
+    createPixels();
+  }
+
+  function resetCamera() {
+    camera.position.set(0, 0, 5);
+    camera.rotation.set(0, 0, 0);
+  }
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  init();
+</script>
+</body></html>
